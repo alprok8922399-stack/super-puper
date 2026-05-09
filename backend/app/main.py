@@ -1,46 +1,43 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
+import openai
 import httpx
-from dotenv import load_dotenv
-
-load_dotenv()  # загружает .env при запуске (необязательно если используются переменные окружения в Render)
-
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    raise RuntimeError("OPENAI_API_KEY is not set")
 
 app = FastAPI()
 
-class ChatRequest(BaseModel):
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+class Msg(BaseModel):
     message: str
 
-class ChatResponse(BaseModel):
-    reply: str
+OPENAI_KEY = os.getenv("OPENAI_API_KEY")
+if OPENAI_KEY:
+    openai.api_key = OPENAI_KEY
 
-@app.post("/api/chat", response_model=ChatResponse)
-async def chat_endpoint(req: ChatRequest):
+@app.get("/")
+async def root():
+    return {"status": "ok"}
+
+@app.post("/api/chat")
+async def chat(msg: Msg):
+    if not OPENAI_KEY:
+        raise HTTPException(status_code=500, detail="OPENAI_API_KEY not set")
+    # Простая обёртка к OpenAI (можно заменить на асинх. httpx вызов при желании)
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {OPENAI_API_KEY}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": "gpt-4o-mini",  # или другой выбранный модельный id
-                    "messages": [{"role": "user", "content": req.message}],
-                    "max_tokens": 500
-                },
-            )
-        resp.raise_for_status()
-        data = resp.json()
-        # простой разбор ответа (может отличаться в зависимости от API)
-        reply = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-        return ChatResponse(reply=reply or "Нет ответа от модели.")
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+        resp = openai.ChatCompletion.create(
+            model="gpt-4o-mini", 
+            messages=[{"role":"user","content": msg.message}],
+            max_tokens=150
+        )
+        text = resp.choices[0].message["content"]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-      
+    return {"reply": text}
+    
