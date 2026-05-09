@@ -1,11 +1,9 @@
-// frontend/main.js
-
 const chatForm = document.getElementById('chat-form');
 const inputEl = document.getElementById('message-input');
 const messagesEl = document.getElementById('messages');
 
 async function sendMessage(message) {
-  const response = await fetch('https://super-puper.onrender.com/api/chat', {
+  const response = await fetch('https://super-puper-33.onrender.com/api/chat', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -38,7 +36,6 @@ chatForm.addEventListener('submit', async (e) => {
   inputEl.value = '';
   try {
     const res = await sendMessage(msg);
-    // предположим ответ в res.reply или res.message — выберем одно с приоритетом
     const reply = res.reply ?? res.message ?? JSON.stringify(res);
     appendMessage('bot', reply);
   } catch (err) {
