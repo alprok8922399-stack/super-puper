@@ -3,9 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
 import openai
-import httpx
 
-app = FastAPI()
+app = FastAPI(title="chat-ai-backend")
 
 app.add_middleware(
     CORSMiddleware,
@@ -29,15 +28,13 @@ async def root():
 async def chat(msg: Msg):
     if not OPENAI_KEY:
         raise HTTPException(status_code=500, detail="OPENAI_API_KEY not set")
-    # Простая обёртка к OpenAI (можно заменить на асинх. httpx вызов при желании)
     try:
         resp = openai.ChatCompletion.create(
-            model="gpt-4o-mini", 
-            messages=[{"role":"user","content": msg.message}],
-            max_tokens=150
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": msg.message}],
+            max_tokens=300
         )
         text = resp.choices[0].message["content"]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     return {"reply": text}
-    
